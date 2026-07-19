@@ -108,7 +108,14 @@ namespace BonsaiGit.Editor
         private static void CreateVrcWorld()
         {
             GameObject worldGo = new GameObject("VRCWorld");
-            worldGo.AddComponent<VRCSceneDescriptor>();
+            VRCSceneDescriptor descriptor = worldGo.AddComponent<VRCSceneDescriptor>();
+
+            // spawns が空だと ClientSim の EnablePlayerObjects が NullReferenceException になるため必須。
+            // 盆栽（原点付近）から2m離れた地点にスポーン地点を用意する。
+            GameObject spawn = new GameObject("Spawn");
+            spawn.transform.SetParent(worldGo.transform);
+            spawn.transform.position = new Vector3(2f, 0f, 0f);
+            descriptor.spawns = new[] { spawn.transform };
         }
 
         private static GameObject CreatePot()

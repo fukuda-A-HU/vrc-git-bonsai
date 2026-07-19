@@ -43,15 +43,14 @@ namespace BonsaiGit
 
             if (useDummy)
             {
-                Debug.Log("[Bonsai] useDummy=true, building from dummy data");
-                BuildFromDummy();
+                BuildFromDummy(false);
                 return;
             }
 
             if (jsonUrl == null)
             {
                 Debug.LogWarning("[Bonsai] jsonUrl not set, falling back to dummy");
-                BuildFromDummy();
+                BuildFromDummy(true);
                 return;
             }
 
@@ -72,7 +71,7 @@ namespace BonsaiGit
             else
             {
                 Debug.LogWarning("[Bonsai] parse failed, falling back to dummy");
-                BuildFromDummy();
+                BuildFromDummy(true);
             }
         }
 
@@ -88,7 +87,7 @@ namespace BonsaiGit
             }
             else
             {
-                BuildFromDummy();
+                BuildFromDummy(true);
             }
         }
 
@@ -100,17 +99,24 @@ namespace BonsaiGit
             VRCStringDownloader.LoadUrl(jsonUrl, (IUdonEventReceiver)this);
         }
 
-        private void BuildFromDummy()
+        /// <summary>
+        /// ダミーデータからビルドする。isFallbackFromError で「意図的な使用」と
+        /// 「ダウンロード/パース失敗によるフォールバック」をログ上で区別する。
+        /// </summary>
+        private void BuildFromDummy(bool isFallbackFromError)
         {
             if (dummyJson == null)
             {
-                Debug.LogError("[Bonsai] fallback to dummy failed: dummyJson TextAsset not assigned");
+                Debug.LogError("[Bonsai] dummy data unavailable: dummyJson TextAsset not assigned");
                 return;
             }
 
             if (parser.Parse(dummyJson.text))
             {
-                Debug.Log("[Bonsai] fallback to dummy");
+                if (isFallbackFromError)
+                    Debug.Log("[Bonsai] fallback to dummy (after download/parse error)");
+                else
+                    Debug.Log("[Bonsai] using dummy data (useDummy=true)");
                 StartBuild();
             }
             else
