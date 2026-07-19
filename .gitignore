@@ -1,0 +1,11 @@
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/UserSettings/
+unity/obj/
+unity/Assets/SerializedUdonPrograms/
+*.csproj
+*.sln
+out/
+node_modules/
+.vs/
