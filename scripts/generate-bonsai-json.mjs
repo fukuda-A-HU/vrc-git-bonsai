@@ -267,7 +267,9 @@ function assertFiniteDeep(value, keyPath) {
 }
 assertFiniteDeep(output, '$');
 
-const outDir = path.join(repoDir, 'out');
+// 出力先は対象リポジトリではなく実行時 cwd 基準（BONSAI_REPO_DIR で外部リポを
+// 集計したとき、相手リポジトリ内に out/ を作らないため）。
+const outDir = path.resolve(process.env.BONSAI_OUT_DIR ?? 'out');
 fs.mkdirSync(outDir, { recursive: true });
 const outFile = path.join(outDir, 'bonsai.json');
 fs.writeFileSync(outFile, JSON.stringify(output) + '\n', 'utf8');

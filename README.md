@@ -65,7 +65,7 @@ node scripts/generate-bonsai-json.mjs
 BONSAI_REPO_DIR=/path/to/other/repo node scripts/generate-bonsai-json.mjs
 ```
 
-`out/bonsai.json` に出力されます。`origin` への `git fetch` に失敗した場合は警告を出しつつ
+実行時のカレントディレクトリ配下の `out/bonsai.json` に出力されます（`BONSAI_OUT_DIR` で変更可能）。`origin` への `git fetch` に失敗した場合は警告を出しつつ
 ローカルの refs のみで処理を続行します（オフライン・単体テスト向け）。
 
 ## 注意事項
