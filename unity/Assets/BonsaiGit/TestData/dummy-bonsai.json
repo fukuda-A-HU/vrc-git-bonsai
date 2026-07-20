@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "gen": 1753000000,
+  "trunk": { "commits": 128, "recent30": 14, "len": 0.72 },
+  "branches": [
+    { "h": 0.12, "len": 0.30, "ahead": 1, "behind": 12, "age": 0.95, "seed": 18 },
+    { "h": 0.22, "len": 0.55, "ahead": 4, "behind": 3, "age": 0.62, "seed": 96 },
+    { "h": 0.30, "len": 0.18, "ahead": 0, "behind": 25, "age": 0.99, "seed": 150 },
+    { "h": 0.41, "len": 0.72, "ahead": 9, "behind": 0, "age": 0.10, "seed": 205 },
+    { "h": 0.48, "len": 0.40, "ahead": 2, "behind": 6, "age": 0.55, "seed": 260 },
+    { "h": 0.55, "len": 0.85, "ahead": 12, "behind": 1, "age": 0.05, "seed": 40 },
+    { "h": 0.63, "len": 0.25, "ahead": 1, "behind": 9, "age": 0.80, "seed": 300 },
+    { "h": 0.71, "len": 0.60, "ahead": 6, "behind": 2, "age": 0.35, "seed": 130 },
+    { "h": 0.82, "len": 0.95, "ahead": 15, "behind": 0, "age": 0.02, "seed": 340 },
+    { "h": 0.93, "len": 0.15, "ahead": 0, "behind": 40, "age": 0.90, "seed": 70 }
+  ]
+}
