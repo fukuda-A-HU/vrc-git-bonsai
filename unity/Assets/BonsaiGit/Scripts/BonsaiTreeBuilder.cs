@@ -16,11 +16,19 @@ namespace BonsaiGit
         private const int BranchRings = 5;
         private const int BranchSides = 4;
         private const int MaxBranchesForMesh = 16;
+        private const float LeafAgeThreshold = 0.5f;
+        private const int LeafQuadVertCount = 4;   // クワッド1枚あたりの頂点数
+        private const int LeafQuadTriCount = 2;    // クワッド1枚あたりの三角形数
+        private const int LeafClusterQuadCount = 2; // 交差クワッド1房あたりの枚数
 
         // UdonSharp は static フィールドを未サポートのためインスタンスフィールドにする。
         private Color TrunkColor = new Color(0.42f, 0.28f, 0.16f, 1f);
         private Color BranchColorYoung = new Color(0.35f, 0.5f, 0.2f, 1f);
         private Color BranchColorOld = new Color(0.5f, 0.5f, 0.45f, 1f);
+        private Color LeafColorNew = new Color(0.30f, 0.62f, 0.22f, 1f);
+        private Color LeafColorOld = new Color(0.62f, 0.60f, 0.28f, 1f);
+        private Color CrownColorLow = new Color(0.52f, 0.58f, 0.28f, 1f);
+        private Color CrownColorHigh = new Color(0.15f, 0.42f, 0.12f, 1f);
 
         // 幹の形状パラメータ。枝の生え際計算でも参照するので Build() 実行中はフィールドに保持する。
         private float _trunkHeight;
@@ -43,6 +51,7 @@ namespace BonsaiGit
         private int[] _triangles;
         private int _vertCursor;
         private int _triCursor;
+        private int _leafQuadCount;
         private Vector3 _boundsMin;
         private Vector3 _boundsMax;
 
@@ -70,8 +79,22 @@ namespace BonsaiGit
             int branchVertCount = BranchRings * BranchSides + 1;
             int branchTriCount = (BranchRings - 1) * BranchSides * 2 + BranchSides;
 
-            int totalVerts = trunkVertCount + branchCount * branchVertCount;
-            int totalTris = trunkTriCount + branchCount * branchTriCount;
+            // 葉クワッドの房数を先に数えておく（頂点配列を一括確保するため）。
+            // 房1つ = 交差クワッド2枚 = 8頂点・4三角形。
+            int leafBranchCount = 0;
+            for (int b = 0; b < branchCount; b++)
+            {
+                if (data.branchAge[b] < LeafAgeThreshold)
+                    leafBranchCount++;
+            }
+            int crownClusterCount = Mathf.Clamp(Mathf.RoundToInt(data.trunkRecent30 / 3f), 1, 5);
+            int leafClusterCount = leafBranchCount + crownClusterCount;
+
+            int clusterVertCount = LeafClusterQuadCount * LeafQuadVertCount;
+            int clusterTriCount = LeafClusterQuadCount * LeafQuadTriCount;
+
+            int totalVerts = trunkVertCount + branchCount * branchVertCount + leafClusterCount * clusterVertCount;
+            int totalTris = trunkTriCount + branchCount * branchTriCount + leafClusterCount * clusterTriCount;
 
             _vertices = new Vector3[totalVerts];
             _normals = new Vector3[totalVerts];
@@ -80,6 +103,7 @@ namespace BonsaiGit
             _triangles = new int[totalTris * 3];
             _vertCursor = 0;
             _triCursor = 0;
+            _leafQuadCount = 0;
 
             for (int j = 0; j < TrunkSides; j++)
             {
@@ -108,6 +132,8 @@ namespace BonsaiGit
             for (int b = 0; b < branchCount; b++)
                 BuildBranch(data, b);
 
+            BuildCrown(data, crownClusterCount);
+
             Mesh mesh = new Mesh();
             mesh.vertices = _vertices;
             mesh.triangles = _triangles;
@@ -134,7 +160,7 @@ namespace BonsaiGit
             _uv = null;
             _triangles = null;
 
-            Debug.Log("[Bonsai] mesh built verts=" + builtVerts + " tris=" + builtTris + " ms=" + elapsedMs.ToString("F2"));
+            Debug.Log("[Bonsai] mesh built verts=" + builtVerts + " tris=" + builtTris + " ms=" + elapsedMs.ToString("F2") + " leaves=" + _leafQuadCount);
         }
 
         // 幹の中心線（曲がりオフセット込み）。t は根本 0 〜 先端 1。
@@ -303,6 +329,104 @@ namespace BonsaiGit
                 _triangles[_triCursor++] = tipIndex;
                 _triangles[_triCursor++] = lastRingBase + jn;
             }
+
+            // 若い枝（age<0.5）の先端に交差クワッドの葉房を1つ追加する。
+            if (age < LeafAgeThreshold)
+            {
+                float leafSize = Mathf.Lerp(0.05f, 0.09f, lenNorm);
+                Color leafColor = Color.Lerp(LeafColorNew, LeafColorOld, Mathf.Clamp01(age / LeafAgeThreshold));
+                AddLeafCluster(tipPos, growthAxis, leafSize, seedDeg, leafColor);
+            }
+        }
+
+        // 幹頂部の樹冠。trunkRecent30 が多いほど房数が増え、色も濃い緑になる。
+        private void BuildCrown(BonsaiJsonParser data, int clusterCount)
+        {
+            Vector3 tipPos = TrunkCenterAt(1f);
+            float recentT = Mathf.Clamp01(data.trunkRecent30 / 20f);
+            Color crownColor = Color.Lerp(CrownColorLow, CrownColorHigh, recentT);
+            float size = Mathf.Lerp(0.06f, 0.09f, recentT);
+
+            for (int i = 0; i < clusterCount; i++)
+            {
+                // 乱数を使わず commits と房番号から決定的に配置角度をずらす。
+                int angleDeg = (data.trunkCommits * 3 + i * 73) % 360;
+                float radius = _trunkTipRadius * 1.2f + i * 0.012f;
+                float rad = angleDeg * Mathf.Deg2Rad;
+                Vector3 offset = new Vector3(Mathf.Cos(rad) * radius, i * 0.02f, Mathf.Sin(rad) * radius);
+                Vector3 center = tipPos + offset;
+                AddLeafCluster(center, Vector3.up, size, angleDeg + i * 17, crownColor);
+            }
+        }
+
+        // attachPoint を起点に、axis 方向へ伸びる交差クワッド（2枚・8頂点・4三角形）の葉房を1つ追加する。
+        // 向きは axis 周りに seedDeg から決定的に回転させ、房ごとに傾きをずらす。
+        private void AddLeafCluster(Vector3 attachPoint, Vector3 axis, float size, int seedDeg, Color color)
+        {
+            Vector3 helper = Mathf.Abs(Vector3.Dot(axis, Vector3.up)) > 0.99f ? Vector3.forward : Vector3.up;
+            Vector3 side0 = Vector3.Normalize(Vector3.Cross(helper, axis));
+
+            // side0 を axis 周りに seedDeg 回転させる（Rodrigues の回転公式。side0 は axis に垂直なので簡略化できる）。
+            float rollRad = (seedDeg % 360) * Mathf.Deg2Rad;
+            Vector3 rolled = side0 * Mathf.Cos(rollRad) + Vector3.Cross(axis, side0) * Mathf.Sin(rollRad);
+            Vector3 side1 = Vector3.Cross(axis, rolled);
+
+            Vector3 center = attachPoint - axis * (size * 0.25f);
+            AddLeafQuad(center, rolled, axis, size, color);
+            AddLeafQuad(center, side1, axis, size, color);
+        }
+
+        // center から sideDir/axis 方向に広がる1枚のクワッド（4頂点・2三角形）を追加する。
+        private void AddLeafQuad(Vector3 center, Vector3 sideDir, Vector3 axis, float size, Color color)
+        {
+            float half = size * 0.5f;
+            Vector3 v0 = center - sideDir * half;
+            Vector3 v1 = center + sideDir * half;
+            Vector3 v2 = v1 + axis * size;
+            Vector3 v3 = v0 + axis * size;
+            Vector3 faceNormal = Vector3.Cross(sideDir, axis).normalized;
+
+            int i0 = _vertCursor;
+            _vertices[i0] = v0;
+            _normals[i0] = faceNormal;
+            _colors[i0] = color;
+            _uv[i0] = Vector2.zero;
+            ExpandBounds(v0);
+            _vertCursor++;
+
+            int i1 = _vertCursor;
+            _vertices[i1] = v1;
+            _normals[i1] = faceNormal;
+            _colors[i1] = color;
+            _uv[i1] = Vector2.zero;
+            ExpandBounds(v1);
+            _vertCursor++;
+
+            int i2 = _vertCursor;
+            _vertices[i2] = v2;
+            _normals[i2] = faceNormal;
+            _colors[i2] = color;
+            _uv[i2] = Vector2.zero;
+            ExpandBounds(v2);
+            _vertCursor++;
+
+            int i3 = _vertCursor;
+            _vertices[i3] = v3;
+            _normals[i3] = faceNormal;
+            _colors[i3] = color;
+            _uv[i3] = Vector2.zero;
+            ExpandBounds(v3);
+            _vertCursor++;
+
+            _triangles[_triCursor++] = i0;
+            _triangles[_triCursor++] = i2;
+            _triangles[_triCursor++] = i1;
+
+            _triangles[_triCursor++] = i0;
+            _triangles[_triCursor++] = i3;
+            _triangles[_triCursor++] = i2;
+
+            _leafQuadCount++;
         }
 
         private void ExpandBounds(Vector3 p)
