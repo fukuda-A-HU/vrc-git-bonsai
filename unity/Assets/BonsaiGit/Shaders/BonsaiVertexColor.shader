@@ -6,7 +6,8 @@ Shader "BonsaiGit/VertexColor"
     SubShader
     {
         Tags { "RenderType" = "Opaque" }
-        Cull Back
+        // 葉の交差クワッドは裏面からも見えるため両面描画にする。
+        Cull Off
         LOD 100
 
         Pass
