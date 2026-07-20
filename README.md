@@ -73,3 +73,50 @@ BONSAI_REPO_DIR=/path/to/other/repo node scripts/generate-bonsai-json.mjs
 - `schedule` トリガーによる GitHub Actions の定期実行は、**リポジトリに 60 日間まったく
   アクティビティ（push 等）が無いと GitHub 側の仕様により自動的に無効化されます**。
   再度動かすには `workflow_dispatch` で手動実行するか、何らかの push を行ってください。
+
+## ワールドへの導入
+
+このリポジトリの実装は VPM パッケージ `com.fukuda-a-hu.vrc-git-bonsai`（`unity/Packages/`
+配下）として配布しています。第三者のワールドプロジェクトに組み込む手順は次のとおりです。
+
+### 1. パッケージの導入
+
+1. [Releases](../../releases) から最新の `com.fukuda-a-hu.vrc-git-bonsai-<version>.zip` を
+   ダウンロードする
+2. 自分の VRChat ワールドプロジェクトの `Packages/com.fukuda-a-hu.vrc-git-bonsai/` に展開する
+   （zip ルート直下に `package.json` が来る構造なので、そのままこのフォルダ名で展開すればよい）
+3. Unity メニューの `Bonsai/Setup PoC Scene` を実行すると、盆栽オブジェクトを含むシーンが
+   組み立てられる（シーンの保存先は利用者プロジェクト内の `Assets/BonsaiGit/Scenes/` になる）
+
+U# スクリプト（`BonsaiJsonParser.cs` / `BonsaiTreeBuilder.cs` / `BonsaiController.cs`）を含め
+実装一式がパッケージ内で完結するため、`Assets/` 側への追加コピーは不要です（詳細は下記
+「制約」参照）。
+
+### 2. 自分のリポジトリを盆栽化する
+
+配信元をこのリポジトリ（`fukuda-a-hu/vrc-git-bonsai`）から自分のリポジトリに差し替える手順です。
+
+1. `scripts/generate-bonsai-json.mjs` と `.github/workflows/publish-bonsai-json.yml` を
+   自分のリポジトリにコピーする
+2. 自分のリポジトリの Settings > Pages で **Build and deployment > Source** を
+   `GitHub Actions`（`build_type=workflow`）に設定する
+3. コピーしたワークフローを一度 `workflow_dispatch` などで実行し、
+   `https://<自分のGitHubユーザー名>.github.io/<リポジトリ名>/bonsai.json` が配信されることを確認する
+4. ワールド側（`Packages/com.fukuda-a-hu.vrc-git-bonsai/Editor/BonsaiSceneSetup.cs` の
+   `BonsaiJsonUrl` 定数、または `Bonsai/Setup PoC Scene` で生成された `BonsaiController` の
+   `Json Url` フィールド）を、自分の配信 URL に差し替える
+
+### 制約
+
+- 対象リポジトリは **public** である必要があります（GitHub Pages の無料枠は public リポジトリ
+  のみが対象、かつ VRChat の String Loading は認証なしで取得できる URL しか使えないため）。
+- 配信先ドメインは `*.github.io` である必要があります。VRChat の String Loading /
+  Image Loading が許可する信頼済みドメインの一つのため、追加のホワイトリスト申請なしに
+  ワールドから読み込めます。
+- UdonSharp コンパイラは既定では **Packages/ 配下の U# スクリプトを認識しません**
+  （`does not belong to a U# assembly` エラーになることを Unity 2022.3.22f1 + VRChat SDK 同梱の
+  UdonSharp で確認済み）。本パッケージでは対象アセンブリに asmdef（`BonsaiGit.Runtime.asmdef`）
+  と `UdonSharpAssemblyDefinition`（`BonsaiGit.Runtime.UdonSharpAsmDef.asset`、Unity の
+  `Assets/Create/U# Assembly Definition` で作れるアセット）を対にして用意することで
+  認識されることを実機確認し、U# スクリプト本体もパッケージ内（`Runtime/Scripts/`）に
+  同梱しています。

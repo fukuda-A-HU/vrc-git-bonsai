@@ -1,0 +1,19 @@
+{
+    "name": "BonsaiGit.Runtime",
+    "references": [
+        "UdonSharp.Runtime",
+        "VRC.Udon",
+        "VRC.Udon.Serialization.OdinSerializer",
+        "VRC.SDKBase",
+        "VRC.SDK3"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -19,17 +19,23 @@ namespace BonsaiGit.Editor
     {
         private const string BonsaiJsonUrl = "https://fukuda-a-hu.github.io/vrc-git-bonsai/bonsai.json";
 
-        private const string RootFolder = "Assets/BonsaiGit";
-        private const string ScenePath = RootFolder + "/Scenes/BonsaiPoC.unity";
-        private const string ShaderPath = RootFolder + "/Shaders/BonsaiVertexColor.shader";
-        private const string MaterialPath = RootFolder + "/Materials/Bonsai.mat";
-        private const string DummyJsonPath = RootFolder + "/TestData/dummy-bonsai.json";
+        // UdonSharp コンパイラは既定では Packages/ 配下のスクリプトを認識しないが、
+        // 対象アセンブリに asmdef + UdonSharpAssemblyDefinition（BonsaiGit.Runtime.asmdef /
+        // BonsaiGit.Runtime.UdonSharpAsmDef.asset）を用意すれば認識されることを実機で確認済み。
+        // そのため U# スクリプト本体も含め、シーン保存先以外は VPM パッケージ側に集約している。
+        private const string AssetsRootFolder = "Assets/BonsaiGit";
+        private const string PackageRuntimeFolder = "Packages/com.fukuda-a-hu.vrc-git-bonsai/Runtime";
+
+        private const string ScenePath = AssetsRootFolder + "/Scenes/BonsaiPoC.unity";
+        private const string ShaderPath = PackageRuntimeFolder + "/Shaders/BonsaiVertexColor.shader";
+        private const string MaterialPath = PackageRuntimeFolder + "/Materials/Bonsai.mat";
+        private const string DummyJsonPath = PackageRuntimeFolder + "/TestData/dummy-bonsai.json";
 
         private static readonly string[] ProgramCsPaths =
         {
-            RootFolder + "/Scripts/BonsaiJsonParser.cs",
-            RootFolder + "/Scripts/BonsaiTreeBuilder.cs",
-            RootFolder + "/Scripts/BonsaiController.cs",
+            PackageRuntimeFolder + "/Scripts/BonsaiJsonParser.cs",
+            PackageRuntimeFolder + "/Scripts/BonsaiTreeBuilder.cs",
+            PackageRuntimeFolder + "/Scripts/BonsaiController.cs",
         };
 
         [MenuItem("Bonsai/Setup PoC Scene")]

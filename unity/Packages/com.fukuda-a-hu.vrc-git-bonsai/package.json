@@ -1,0 +1,14 @@
+{
+  "name": "com.fukuda-a-hu.vrc-git-bonsai",
+  "displayName": "VRC Git Bonsai",
+  "version": "0.1.0",
+  "unity": "2022.3",
+  "description": "GitHub リポジトリの進捗を盆栽として可視化する VRChat ワールド用アセット。",
+  "author": {
+    "name": "Eiki Fukuda"
+  },
+  "license": "MIT",
+  "vpmDependencies": {
+    "com.vrchat.worlds": ">=3.7.6"
+  }
+}
