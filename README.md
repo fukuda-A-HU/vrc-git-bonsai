@@ -85,12 +85,12 @@ BONSAI_REPO_DIR=/path/to/other/repo node scripts/generate-bonsai-json.mjs
    ダウンロードする
 2. 自分の VRChat ワールドプロジェクトの `Packages/com.fukuda-a-hu.vrc-git-bonsai/` に展開する
    （zip ルート直下に `package.json` が来る構造なので、そのままこのフォルダ名で展開すればよい）
-3. **U# スクリプトは別途 `Assets/` 側に必要**（下記「制約」参照）。このリポジトリの
-   `unity/Assets/BonsaiGit/Scripts/` 一式（`BonsaiJsonParser.cs` / `BonsaiTreeBuilder.cs` /
-   `BonsaiController.cs` とそれぞれの `.asset`）を、自分のプロジェクトの
-   `Assets/BonsaiGit/Scripts/` にコピーする
-4. Unity メニューの `Bonsai/Setup PoC Scene` を実行すると、盆栽オブジェクトを含むシーンが
+3. Unity メニューの `Bonsai/Setup PoC Scene` を実行すると、盆栽オブジェクトを含むシーンが
    組み立てられる（シーンの保存先は利用者プロジェクト内の `Assets/BonsaiGit/Scenes/` になる）
+
+U# スクリプト（`BonsaiJsonParser.cs` / `BonsaiTreeBuilder.cs` / `BonsaiController.cs`）を含め
+実装一式がパッケージ内で完結するため、`Assets/` 側への追加コピーは不要です（詳細は下記
+「制約」参照）。
 
 ### 2. 自分のリポジトリを盆栽化する
 
@@ -113,7 +113,10 @@ BONSAI_REPO_DIR=/path/to/other/repo node scripts/generate-bonsai-json.mjs
 - 配信先ドメインは `*.github.io` である必要があります。VRChat の String Loading /
   Image Loading が許可する信頼済みドメインの一つのため、追加のホワイトリスト申請なしに
   ワールドから読み込めます。
-- UdonSharp コンパイラは **Packages/ 配下の U# スクリプトを認識しません**
+- UdonSharp コンパイラは既定では **Packages/ 配下の U# スクリプトを認識しません**
   （`does not belong to a U# assembly` エラーになることを Unity 2022.3.22f1 + VRChat SDK 同梱の
-  UdonSharp で確認済み）。このため U# スクリプト本体だけは VPM パッケージに同梱できず、
-  上記手順のとおり `Assets/BonsaiGit/Scripts/` に個別コピーする妥協構成になっています。
+  UdonSharp で確認済み）。本パッケージでは対象アセンブリに asmdef（`BonsaiGit.Runtime.asmdef`）
+  と `UdonSharpAssemblyDefinition`（`BonsaiGit.Runtime.UdonSharpAsmDef.asset`、Unity の
+  `Assets/Create/U# Assembly Definition` で作れるアセット）を対にして用意することで
+  認識されることを実機確認し、U# スクリプト本体もパッケージ内（`Runtime/Scripts/`）に
+  同梱しています。

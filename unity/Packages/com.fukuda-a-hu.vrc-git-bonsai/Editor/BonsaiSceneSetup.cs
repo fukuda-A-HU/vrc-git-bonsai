@@ -19,10 +19,10 @@ namespace BonsaiGit.Editor
     {
         private const string BonsaiJsonUrl = "https://fukuda-a-hu.github.io/vrc-git-bonsai/bonsai.json";
 
-        // U# は UdonSharp コンパイラが Packages/ 配下のスクリプトを認識しない（"does not belong to a
-        // U# assembly" エラーになることを実機で確認済み）ため、U#スクリプト（+ProgramAsset）だけは
-        // 利用者プロジェクトを汚さない Assets/BonsaiGit 側に残す妥協構成にしている。
-        // シェーダ・マテリアル・ダミーJSON・本Editorスクリプトは VPM パッケージ側に集約する。
+        // UdonSharp コンパイラは既定では Packages/ 配下のスクリプトを認識しないが、
+        // 対象アセンブリに asmdef + UdonSharpAssemblyDefinition（BonsaiGit.Runtime.asmdef /
+        // BonsaiGit.Runtime.UdonSharpAsmDef.asset）を用意すれば認識されることを実機で確認済み。
+        // そのため U# スクリプト本体も含め、シーン保存先以外は VPM パッケージ側に集約している。
         private const string AssetsRootFolder = "Assets/BonsaiGit";
         private const string PackageRuntimeFolder = "Packages/com.fukuda-a-hu.vrc-git-bonsai/Runtime";
 
@@ -33,9 +33,9 @@ namespace BonsaiGit.Editor
 
         private static readonly string[] ProgramCsPaths =
         {
-            AssetsRootFolder + "/Scripts/BonsaiJsonParser.cs",
-            AssetsRootFolder + "/Scripts/BonsaiTreeBuilder.cs",
-            AssetsRootFolder + "/Scripts/BonsaiController.cs",
+            PackageRuntimeFolder + "/Scripts/BonsaiJsonParser.cs",
+            PackageRuntimeFolder + "/Scripts/BonsaiTreeBuilder.cs",
+            PackageRuntimeFolder + "/Scripts/BonsaiController.cs",
         };
 
         [MenuItem("Bonsai/Setup PoC Scene")]
