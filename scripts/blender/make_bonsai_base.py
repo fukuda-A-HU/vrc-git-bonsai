@@ -254,6 +254,9 @@ bpy.ops.export_scene.fbx(
     use_selection=False,
     object_types={'MESH', 'EMPTY'},
     apply_scale_options='FBX_SCALE_ALL',
+    # 軸変換(Z-up→Y-up)をノードの回転ではなくデータ側に焼き込む。これをしないと Unity 側で
+    # ルートに -90° 回転が乗り、回転をリセットする消費側コードでモデルが倒れてしまう。
+    bake_space_transform=True,
     add_leaf_bones=False,
     colors_type='SRGB',
 )

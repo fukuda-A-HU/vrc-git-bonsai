@@ -1,2 +1,8 @@
 fileFormatVersion: 2
 guid: c9827ca31dec490fb2dc247dae90ec58
+ModelImporter:
+  serializedVersion: 22200
+  materials:
+    materialImportMode: 0
+  animationType: 0
+  importAnimation: 0
