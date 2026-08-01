@@ -92,6 +92,12 @@ U# スクリプト（`BonsaiJsonParser.cs` / `BonsaiTreeBuilder.cs` / `BonsaiCon
 実装一式がパッケージ内で完結するため、`Assets/` 側への追加コピーは不要です（詳細は下記
 「制約」参照）。
 
+盆栽の土台（木製台座・楕円鉢・苔つき土・岩2個）は Blender 製の FBX モデル
+（`unity/Packages/com.fukuda-a-hu.vrc-git-bonsai/Runtime/Models/BonsaiBase.fbx`）で、樹木本体は
+従来どおりプロシージャル生成です。土台モデルは `scripts/blender/make_bonsai_base.py` から
+Blender 5.x のヘッドレス実行（`blender --background --python scripts/blender/make_bonsai_base.py`）
+で再生成できます。
+
 ### 2. 自分のリポジトリを盆栽化する
 
 配信元をこのリポジトリ（`fukuda-a-hu/vrc-git-bonsai`）から自分のリポジトリに差し替える手順です。
