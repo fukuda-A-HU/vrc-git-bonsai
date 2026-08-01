@@ -258,7 +258,9 @@ bpy.ops.export_scene.fbx(
     # ルートに -90° 回転が乗り、回転をリセットする消費側コードでモデルが倒れてしまう。
     bake_space_transform=True,
     add_leaf_bones=False,
-    colors_type='SRGB',
+    # Unity はリニアカラースペース + Unlit シェーダーで頂点カラーを生値のまま出力するため、
+    # sRGB エンコードで格納すると表示時に二重ガンマ補正となり白っぽく飛ぶ。リニアで格納する。
+    colors_type='LINEAR',
 )
 
 # ------- プレビュー描画(Workbench / FLAT ライティング = Unity Unlit 相当)

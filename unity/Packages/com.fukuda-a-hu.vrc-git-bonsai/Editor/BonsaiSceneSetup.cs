@@ -124,6 +124,8 @@ namespace BonsaiGit.Editor
             GameObject spawn = new GameObject("Spawn");
             spawn.transform.SetParent(worldGo.transform);
             spawn.transform.position = new Vector3(2f, 0f, 0f);
+            // スポーン直後に原点の盆栽が視界に入るよう、-X 方向（盆栽側）を向ける。
+            spawn.transform.rotation = Quaternion.Euler(0f, -90f, 0f);
             descriptor.spawns = new[] { spawn.transform };
         }
 
