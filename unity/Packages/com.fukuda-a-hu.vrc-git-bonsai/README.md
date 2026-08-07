@@ -7,8 +7,12 @@ GitHub リポジトリの進捗を「盆栽」として可視化する VRChat �
 
 U# スクリプトを含む実装一式をこのパッケージだけで完結させています。
 
-- `Runtime/Scripts/` — U# スクリプト本体（`BonsaiJsonParser.cs` / `BonsaiTreeBuilder.cs` /
-  `BonsaiController.cs`）とそれぞれの `UdonSharpProgramAsset`
+- `Runtime/Scripts/` — U# スクリプト本体とそれぞれの `UdonSharpProgramAsset`
+  - `BonsaiJsonParser.cs` — bonsai.json（v2。v1 との後方互換あり）のパース
+  - `BonsaiTreeBuilder.cs` — 幹・枝・葉のプロシージャルメッシュ生成
+  - `BonsaiController.cs` — ダウンロード〜生成〜成長アニメの統括、枝の選択状態の同期
+  - `BonsaiInfoPanel.cs` — 木札（ふだ）の表示更新
+  - `BonsaiBranchTarget.cs` — 枝1本ぶんのUse用当たり判定
 - `Runtime/Scripts/BonsaiGit.Runtime.asmdef` + `BonsaiGit.Runtime.UdonSharpAsmDef.asset` —
   UdonSharp コンパイラは既定では Packages/ 配下のスクリプトを認識しないが、対象アセンブリに
   asmdef と `UdonSharpAssemblyDefinition`（U# Assembly Definition）を対にして用意すると
@@ -16,11 +20,22 @@ U# スクリプトを含む実装一式をこのパッケージだけで完結�
   この2ファイルがその仕組みを担っている
 - `Runtime/Shaders/BonsaiVertexColor.shader` — 盆栽メッシュ用の頂点カラーシェーダ
 - `Runtime/Materials/Bonsai.mat` — 上記シェーダを使うマテリアル
-- `Runtime/TestData/dummy-bonsai.json` — オフライン確認用のダミーデータ
+- `Runtime/Materials/BonsaiFuda.mat` — 木札（板）用のマテリアル（`Unlit/Color`）。
+  `Bonsai.mat` は頂点カラー専用で単色を持たないため木札には使えず、別マテリアルにしている
+- `Runtime/TestData/dummy-bonsai.json` — オフライン確認用のダミーデータ（v2 形式）
 - `Runtime/Models/BonsaiBase.fbx` — 盆栽の土台モデル（木製台座・楕円鉢・苔つき土・岩2個）。
   Blender で作成した FBX で、頂点カラーに陰影を焼き込み済み。マテリアルは付属のものを使わず、
   シーン組み立て時に `Runtime/Materials/Bonsai.mat`（頂点カラーシェーダ）を割り当てる
-- `Editor/BonsaiSceneSetup.cs` — `Bonsai/Setup PoC Scene` メニューでシーンを組み立てるエディタ拡張
+- `Editor/BonsaiSceneSetup.cs` — `Bonsai/Setup PoC Scene` メニューでシーンを組み立てるエディタ拡張。
+  盆栽本体・枝のUse用当たり判定16個・木札（TextMeshPro 4枚）まで含めて自動配線する
+
+## 枝の選択と木札表示
+
+枝をUseするとそのブランチの最新コミット情報が木札に表示されます（詳細はリポジトリルートの
+READMEを参照）。**日本語のコミットメッセージ・作者名を表示するには、木札の各
+TextMeshPro（Heading / Message / Meta / Stats）の Font Asset に日本語対応の SDF
+フォントアセットを Inspector で割り当ててください**（このパッケージにはフォントを同梱していません。
+未設定のままだと日本語部分が豆腐（□）表示になります）。
 
 ## セットアップ
 

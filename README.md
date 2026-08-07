@@ -23,37 +23,80 @@ GitHub リポジトリの進捗を「盆栽」として可視化する VRChat �
 https://fukuda-a-hu.github.io/vrc-git-bonsai/bonsai.json
 ```
 
-## JSON スキーマ
+## JSON スキーマ（v2）
 
-`VRCJson` の制約（文字列フィールドを含められない）に合わせ、値はすべて数値のみで構成されます。
+`VRCJson` の制約（数値・文字列・入れ子オブジェクト/配列は扱えるが、キーの型は固定でなければ
+パースしにくい）に合わせつつ、v2 では枝を選択したときに木札（ふだ）へ表示する
+ブランチ名・最新コミット情報（`name` / `head`）を追加しています。
 
 ```json
 {
-  "v": 1,
+  "v": 2,
   "gen": 1700000000,
-  "trunk": { "commits": 42, "recent30": 5, "len": 0.72 },
+  "trunk": {
+    "commits": 42,
+    "recent30": 5,
+    "len": 0.72,
+    "name": "master",
+    "head": { "sha": "c19a4f2", "msg": "feat: 盆栽木札を追加", "author": "Eiki Fukuda", "at": 1699996400 }
+  },
   "branches": [
-    { "h": 0.85, "len": 0.42, "ahead": 3, "behind": 5, "age": 0.03, "seed": 217 }
+    { "h": 0.85, "len": 0.42, "ahead": 3, "behind": 5, "age": 0.03, "seed": 217,
+      "name": "feat/branch-select-fuda",
+      "head": { "sha": "6d84b3e", "msg": "feat: 枝を選択すると木札にブランチ情報を表示する機能を追加", "author": "Eiki Fukuda", "at": 1699222400 } }
   ]
 }
 ```
 
 | フィールド | 意味 |
 | --- | --- |
-| `v` | スキーマバージョン（固定値 `1`） |
-| `gen` | 生成時刻（unix 秒） |
+| `v` | スキーマバージョン（現在は `2`） |
+| `gen` | 生成時刻（unix 秒）。木札の相対時刻表示（後述）はこの値を基準にする |
 | `trunk.commits` | デフォルトブランチの first-parent チェーン長 |
 | `trunk.recent30` | 直近30日の first-parent コミット数 |
 | `trunk.len` | 幹の見た目の長さ（0〜1に正規化） |
+| `trunk.name` | デフォルトブランチ名 |
+| `trunk.head` | デフォルトブランチの最新コミット情報（下記 `head` 共通形式） |
 | `branches[].h` | 幹上の分岐位置（0=根本 / 1=幹の先端） |
 | `branches[].len` | 枝の長さ（0〜1、ahead コミット数の対数スケール） |
 | `branches[].ahead` | デフォルトブランチとの merge-base からの先行コミット数 |
 | `branches[].behind` | デフォルトブランチに対する遅れコミット数 |
 | `branches[].age` | ブランチ先端の経過日数（0〜1、90日でクランプ） |
 | `branches[].seed` | ブランチ名から算出した疑似乱数シード（0〜359、枝の向き等の見た目バリエーション用） |
+| `branches[].name` | ブランチ名 |
+| `branches[].head` | ブランチ先端の最新コミット情報（下記 `head` 共通形式） |
+
+`head`（`trunk.head` / `branches[].head` 共通形式）:
+
+| フィールド | 意味 |
+| --- | --- |
+| `head.sha` | コミットの短縮SHA（`git log --format=%h`） |
+| `head.msg` | コミットメッセージの件名（1行目）。**80文字を超える場合は80文字に切り詰めて末尾に `…` を付与** |
+| `head.author` | コミット作者名（`%an`） |
+| `head.at` | コミット日時（unix秒） |
 
 `ahead == 0` のブランチ（デフォルトブランチに完全に追従しているだけのブランチ）は除外され、
 最大 16 本までブランチ先端の新しい順に採用されます。
+
+v1（`name` / `head` を含まない）のJSONを配信し続けている場合でも、ワールド側の
+`BonsaiJsonParser` は後方互換でパースします（`name` は空文字、`head` 系は空文字/0として扱う）。
+
+## 枝の選択と木札表示
+
+盆栽の各枝は VRChat 上で Use（インタラクト）できます。枝を Use すると、そのブランチの
+`name` / `head`（最新コミットのSHA・件名・作者・日時）と `ahead`/`behind` が、盆栽の脇に
+立つ木札（ふだ）に表示されます。何もUseしていない状態では、木札は幹（デフォルトブランチ）の
+情報を表示します。選択状態はプレイヤー間で同期されます（`BonsaiController` の
+`UdonSynced int _selectedBranch`）。
+
+- 日本語のコミットメッセージ・作者名を正しく表示するには、木札の各 TextMeshPro（`Heading` /
+  `Message` / `Meta` / `Stats`）の **Font Asset に日本語対応の SDF フォントアセットを
+  Inspector で割り当てる**必要があります。フォントアセット自体はこのリポジトリに同梱していません
+  （既定の Latin 専用フォントのままだと日本語は豆腐（□）表示になります）。
+- 木札の相対時刻表示（「3時間前」等）は、実世界の現在時刻ではなく JSON の `gen`
+  （生成時刻）を基準に計算しています。UdonSharp で `System.DateTime.UtcNow` 等の
+  API が実機で確実に使えるか未検証だったため、確実に動く整数演算のみで完結させています。
+  `bonsai.json` は数時間おきに再生成される想定なので、実用上は十分な鮮度になります。
 
 ## ローカル実行方法
 

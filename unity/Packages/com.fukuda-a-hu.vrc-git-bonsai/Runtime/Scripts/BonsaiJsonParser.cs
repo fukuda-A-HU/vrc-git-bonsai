@@ -5,8 +5,10 @@ using VRC.SDK3.Data;
 namespace BonsaiGit
 {
     /// <summary>
-    /// bonsai.json (配信済みスキーマ v1) をパースして、幹・枝の数値を固定長配列に展開する。
+    /// bonsai.json をパースして、幹・枝の数値を固定長配列に展開する。
     /// VRCJson の数値は常に Double で返るため、必ず TokenType を指定して受け取り float/int にキャストする。
+    /// スキーマ v2 で追加された name/head（ブランチ名・最新コミット情報）にも対応するが、
+    /// v1 の JSON（これらのキーが無い）でもパースを失敗させず、空文字/0で埋めて続行する。
     /// </summary>
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
     public class BonsaiJsonParser : UdonSharpBehaviour
@@ -17,6 +19,17 @@ namespace BonsaiGit
         [HideInInspector] public int trunkCommits;
         [HideInInspector] public int trunkRecent30;
         [HideInInspector] public float trunkLen;
+        [HideInInspector] public string trunkName;
+        [HideInInspector] public string trunkHeadSha;
+        [HideInInspector] public string trunkHeadMsg;
+        [HideInInspector] public string trunkHeadAuthor;
+        [HideInInspector] public int trunkHeadAt;
+        [HideInInspector] public int genAt; // ルートの "gen"（JSON生成時刻、unix秒）
+
+        // Parse() が公開フィールドへの反映まで完了したかどうか。
+        // 後から join したプレイヤーは、自分のパースが終わる前に他プレイヤーの選択状態（同期）を
+        // 受信し得るため、BonsaiController 側でこのフラグを見てから木札を更新する。
+        [HideInInspector] public bool parsed;
 
         [HideInInspector] public int branchCount;
         [HideInInspector] public float[] branchH = new float[MaxBranches];
@@ -25,15 +38,27 @@ namespace BonsaiGit
         [HideInInspector] public int[] branchAhead = new int[MaxBranches];
         [HideInInspector] public int[] branchBehind = new int[MaxBranches];
         [HideInInspector] public int[] branchSeed = new int[MaxBranches];
+        [HideInInspector] public string[] branchName = new string[MaxBranches];
+        [HideInInspector] public string[] branchHeadSha = new string[MaxBranches];
+        [HideInInspector] public string[] branchHeadMsg = new string[MaxBranches];
+        [HideInInspector] public string[] branchHeadAuthor = new string[MaxBranches];
+        [HideInInspector] public int[] branchHeadAt = new int[MaxBranches];
 
         /// <summary>
         /// JSON文字列をパースする。成功時 true、失敗時は状態を初期化して false を返す。
         /// </summary>
         public bool Parse(string json)
         {
+            parsed = false;
             trunkCommits = 0;
             trunkRecent30 = 0;
             trunkLen = 0f;
+            trunkName = "";
+            trunkHeadSha = "";
+            trunkHeadMsg = "";
+            trunkHeadAuthor = "";
+            trunkHeadAt = 0;
+            genAt = 0;
             branchCount = 0;
 
             if (json == null || json.Length == 0)
@@ -56,6 +81,9 @@ namespace BonsaiGit
             }
 
             DataDictionary root = rootToken.DataDictionary;
+
+            // "gen" は v1/v2 とも必須だが、無くても致命的ではないので任意扱いにする。
+            int newGenAt = GetOptionalInt(root, "gen");
 
             DataToken trunkToken;
             if (!root.TryGetValue("trunk", TokenType.DataDictionary, out trunkToken))
@@ -86,6 +114,22 @@ namespace BonsaiGit
                 return false;
             }
 
+            // v2 で追加されたフィールド。v1 の JSON には存在しないため、無くても失敗させない。
+            string newTrunkName = GetOptionalString(trunk, "name");
+            string newTrunkHeadSha = "";
+            string newTrunkHeadMsg = "";
+            string newTrunkHeadAuthor = "";
+            int newTrunkHeadAt = 0;
+            DataToken trunkHeadToken;
+            if (trunk.TryGetValue("head", TokenType.DataDictionary, out trunkHeadToken))
+            {
+                DataDictionary trunkHead = trunkHeadToken.DataDictionary;
+                newTrunkHeadSha = GetOptionalString(trunkHead, "sha");
+                newTrunkHeadMsg = GetOptionalString(trunkHead, "msg");
+                newTrunkHeadAuthor = GetOptionalString(trunkHead, "author");
+                newTrunkHeadAt = GetOptionalInt(trunkHead, "at");
+            }
+
             DataToken branchesToken;
             if (!root.TryGetValue("branches", TokenType.DataList, out branchesToken))
             {
@@ -104,6 +148,11 @@ namespace BonsaiGit
             int[] newAhead = new int[MaxBranches];
             int[] newBehind = new int[MaxBranches];
             int[] newSeed = new int[MaxBranches];
+            string[] newName = new string[MaxBranches];
+            string[] newHeadSha = new string[MaxBranches];
+            string[] newHeadMsg = new string[MaxBranches];
+            string[] newHeadAuthor = new string[MaxBranches];
+            int[] newHeadAt = new int[MaxBranches];
 
             for (int i = 0; i < count; i++)
             {
@@ -163,22 +212,73 @@ namespace BonsaiGit
                 newAhead[i] = (int)aheadTok.Double;
                 newBehind[i] = (int)behindTok.Double;
                 newSeed[i] = (int)seedTok.Double;
+
+                // v2 の name/head。v1 では欠けているので、無ければ空文字/0のままにする。
+                newName[i] = GetOptionalString(entry, "name");
+                DataToken headToken;
+                if (entry.TryGetValue("head", TokenType.DataDictionary, out headToken))
+                {
+                    DataDictionary head = headToken.DataDictionary;
+                    newHeadSha[i] = GetOptionalString(head, "sha");
+                    newHeadMsg[i] = GetOptionalString(head, "msg");
+                    newHeadAuthor[i] = GetOptionalString(head, "author");
+                    newHeadAt[i] = GetOptionalInt(head, "at");
+                }
+                else
+                {
+                    newHeadSha[i] = "";
+                    newHeadMsg[i] = "";
+                    newHeadAuthor[i] = "";
+                    newHeadAt[i] = 0;
+                }
             }
 
             // ここまで全チェックを通過して初めて公開フィールドへ反映する（部分適用を避ける）。
             trunkCommits = (int)commitsToken.Double;
             trunkRecent30 = (int)recent30Token.Double;
             trunkLen = (float)trunkLenToken.Double;
+            trunkName = newTrunkName;
+            trunkHeadSha = newTrunkHeadSha;
+            trunkHeadMsg = newTrunkHeadMsg;
+            trunkHeadAuthor = newTrunkHeadAuthor;
+            trunkHeadAt = newTrunkHeadAt;
+            genAt = newGenAt;
             branchH = newH;
             branchLen = newLen;
             branchAge = newAge;
             branchAhead = newAhead;
             branchBehind = newBehind;
             branchSeed = newSeed;
+            branchName = newName;
+            branchHeadSha = newHeadSha;
+            branchHeadMsg = newHeadMsg;
+            branchHeadAuthor = newHeadAuthor;
+            branchHeadAt = newHeadAt;
             branchCount = count;
+
+            // 公開フィールドへの反映が完了した後で初めて true にする。
+            parsed = true;
 
             Debug.Log("[Bonsai] parsed branches=" + branchCount);
             return true;
+        }
+
+        // 型が違う/キーが無い場合は "" を返す（v1 JSON との後方互換のための任意フィールド用）。
+        private string GetOptionalString(DataDictionary dict, string key)
+        {
+            DataToken tok;
+            if (dict.TryGetValue(key, TokenType.String, out tok))
+                return tok.String;
+            return "";
+        }
+
+        // 型が違う/キーが無い場合は 0 を返す（v1 JSON との後方互換のための任意フィールド用）。
+        private int GetOptionalInt(DataDictionary dict, string key)
+        {
+            DataToken tok;
+            if (dict.TryGetValue(key, TokenType.Double, out tok))
+                return (int)tok.Double;
+            return 0;
         }
     }
 }
