@@ -45,6 +45,10 @@ namespace BonsaiGit.Editor
         private const string BranchTargetNamePrefix = "BranchTarget_";
         private const float BranchTargetRadius = 0.06f;
 
+        // TMP Essential Resources（既定フォントアセット・シェーダー・TMP Settings 一式）が
+        // 展開されると必ずこのパスに TMP Settings.asset が置かれる。
+        private const string TmpSettingsAssetPath = "Assets/TextMesh Pro/Resources/TMP Settings.asset";
+
         private static readonly string[] ProgramCsPaths =
         {
             PackageRuntimeFolder + "/Scripts/BonsaiJsonParser.cs",
@@ -57,6 +61,30 @@ namespace BonsaiGit.Editor
         [MenuItem("Bonsai/Setup PoC Scene")]
         public static void SetupScene()
         {
+            // 木札の表示に TextMeshPro を使っているため、TMP Essential Resources 未導入のまま
+            // シーンを組み立てると、TextMeshPro コンポーネントを生成・選択した時点で Unity が
+            // 「TMP Importer」ダイアログを表示してメインスレッドをブロックしてしまう
+            // （batchmode / -executeMethod 実行では即ハング）。シーンを作り始める前に検出して
+            // 早期リターンする。
+            //
+            // 自動インポート（TMPro.TMP_PackageResourceImporter.ImportResources(true, false, false) 経由で
+            // AssetDatabase.ImportPackage を呼ぶ）も検討したが、ImportPackage は非同期でインポート完了は
+            // importPackageCompleted コールバック経由でしか分からず、同期的に完了を待つ公式APIが無い。
+            // このメソッドの直後でフォントアセット割り当てやシーン保存まで一気に行う都合上、
+            // インポート未完了のまま後続処理が走る事故（batchmode ではプロセス終了、GUI 実行でも
+            // フォント未反映のシーンが保存される）を避けられないため、確実性の低い自動化はせず
+            // 明確なエラーで中断する方針にした。
+            if (!IsTmpEssentialResourcesImported())
+            {
+                Debug.LogError(
+                    "[BonsaiSceneSetup] TMP Essential Resources が未インポートです。" +
+                    "Unity メニューの [Window > TextMeshPro > Import TMP Essential Resources] を実行し、" +
+                    "インポート完了後にもう一度 [Bonsai/Setup PoC Scene] を実行してください。" +
+                    "（未インポートのまま続行すると、TextMeshPro 生成時に TMP Importer ダイアログが" +
+                    "表示されて Unity がブロックされます）");
+                return;
+            }
+
             EnsureProgramAssets();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -73,6 +101,25 @@ namespace BonsaiGit.Editor
 
             Selection.activeGameObject = bonsai;
             Debug.Log("[BonsaiSceneSetup] scene setup complete: " + ScenePath);
+        }
+
+        /// <summary>
+        /// TMP Essential Resources が Assets/TextMesh Pro/ に展開済みかどうかを判定する。
+        ///
+        /// TMPro.TMP_Settings.instance で判定する方法は使わない。未導入の状態でこのプロパティに
+        /// 触れると、TMP_Settings 自身が内部で TMP_PackageResourceImporterWindow.ShowPackageImporterWindow()
+        /// を呼び出し、まさに今回問題になった「TMP Importer」ダイアログを開いてしまうため
+        /// （com.unity.textmeshpro@3.0.6 Scripts/Runtime/TMP_Settings.cs の instance プロパティ実装を
+        /// 実際に確認して裏を取った）。判定するつもりが判定行為自体でダイアログを誘発しては意味がない。
+        ///
+        /// 代わりに、TMP 公式の TMP_PackageResourceImporter.OnGUI()（Scripts/Runtime/TMP_PackageResourceImporter.cs）
+        /// が「インポート済みかどうか」の判定に使っているのと同じロジック
+        /// （File.Exists("Assets/TextMesh Pro/Resources/TMP Settings.asset")）を採用する。
+        /// TMPro 型・AssetDatabase に一切触れないファイル存在チェックのみなので副作用が無く安全。
+        /// </summary>
+        private static bool IsTmpEssentialResourcesImported()
+        {
+            return System.IO.File.Exists(TmpSettingsAssetPath);
         }
 
         private static void EnsureProgramAssets()
@@ -331,6 +378,18 @@ namespace BonsaiGit.Editor
             tmp.text = "";
             tmp.alignment = TMPro.TextAlignmentOptions.Center;
             tmp.color = new Color(0.95f, 0.92f, 0.85f); // 焦げ茶の板に映える生成り色
+
+            // SetupScene() の冒頭で TMP Essential Resources 導入済みであることは確認済みなので、
+            // ここでは安全に TMP_Settings.defaultFontAsset（既定の Latin 専用 SDF フォント）に触れる。
+            // 未設定のまま（font が null）だと木札に何も描画されないため、フォールバックとして
+            // 割り当てておく。ただし既定フォントは日本語グリフを持たないため、日本語のコミット
+            // メッセージ・作者名は豆腐（□）表示になる。日本語を正しく表示するには、この
+            // TextMeshPro の Font Asset に別途、日本語対応の SDF フォントアセットを Inspector で
+            // 割り当てる必要がある（README 参照）。
+            TMPro.TMP_FontAsset defaultFont = TMPro.TMP_Settings.defaultFontAsset;
+            if (defaultFont != null)
+                tmp.font = defaultFont;
+
             tmp.enableWordWrapping = true;
             tmp.enableAutoSizing = true;
             tmp.fontSizeMin = fontSizeMin;
