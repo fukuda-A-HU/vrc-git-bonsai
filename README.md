@@ -89,10 +89,16 @@ v1（`name` / `head` を含まない）のJSONを配信し続けている場合�
 情報を表示します。選択状態はプレイヤー間で同期されます（`BonsaiController` の
 `UdonSynced int _selectedBranch`）。
 
-- 日本語のコミットメッセージ・作者名を正しく表示するには、木札の各 TextMeshPro（`Heading` /
-  `Message` / `Meta` / `Stats`）の **Font Asset に日本語対応の SDF フォントアセットを
+- 木札の表示には TextMeshPro を使っているため、**事前に `Window > TextMeshPro > Import TMP
+  Essential Resources` を実行して TMP Essential Resources（既定フォントアセット・シェーダー・
+  `TMP Settings`）を導入しておく必要があります**。未導入のまま `Bonsai/Setup PoC Scene` を
+  実行すると Unity が「TMP Importer」ダイアログを表示してブロックしてしまうため、
+  `BonsaiSceneSetup.SetupScene()` は未導入を検出するとシーンを組み立てずにエラーで中断します。
+- そのうえで、日本語のコミットメッセージ・作者名を正しく表示するには、木札の各 TextMeshPro
+  （`Heading` / `Message` / `Meta` / `Stats`）の **Font Asset に日本語対応の SDF フォントアセットを
   Inspector で割り当てる**必要があります。フォントアセット自体はこのリポジトリに同梱していません
-  （既定の Latin 専用フォントのままだと日本語は豆腐（□）表示になります）。
+  （TMP Essential Resources 導入直後の既定 Latin 専用フォントのままだと日本語は豆腐（□）表示に
+  なります）。
 - 木札の相対時刻表示（「3時間前」等）は、実世界の現在時刻ではなく JSON の `gen`
   （生成時刻）を基準に計算しています。UdonSharp で `System.DateTime.UtcNow` 等の
   API が実機で確実に使えるか未検証だったため、確実に動く整数演算のみで完結させています。
@@ -128,7 +134,10 @@ BONSAI_REPO_DIR=/path/to/other/repo node scripts/generate-bonsai-json.mjs
    ダウンロードする
 2. 自分の VRChat ワールドプロジェクトの `Packages/com.fukuda-a-hu.vrc-git-bonsai/` に展開する
    （zip ルート直下に `package.json` が来る構造なので、そのままこのフォルダ名で展開すればよい）
-3. Unity メニューの `Bonsai/Setup PoC Scene` を実行すると、盆栽オブジェクトを含むシーンが
+3. まだ導入していなければ、Unity メニューの `Window > TextMeshPro > Import TMP Essential
+   Resources` を実行する（木札の表示に TextMeshPro を使っており、未導入だと次の手順で
+   Unity がダイアログを出してブロックされます）
+4. Unity メニューの `Bonsai/Setup PoC Scene` を実行すると、盆栽オブジェクトを含むシーンが
    組み立てられる（シーンの保存先は利用者プロジェクト内の `Assets/BonsaiGit/Scenes/` になる）
 
 U# スクリプト（`BonsaiJsonParser.cs` / `BonsaiTreeBuilder.cs` / `BonsaiController.cs`）を含め

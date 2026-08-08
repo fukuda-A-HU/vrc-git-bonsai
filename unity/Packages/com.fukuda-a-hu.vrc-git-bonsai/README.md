@@ -32,15 +32,21 @@ U# スクリプトを含む実装一式をこのパッケージだけで完結�
 ## 枝の選択と木札表示
 
 枝をUseするとそのブランチの最新コミット情報が木札に表示されます（詳細はリポジトリルートの
-READMEを参照）。**日本語のコミットメッセージ・作者名を表示するには、木札の各
-TextMeshPro（Heading / Message / Meta / Stats）の Font Asset に日本語対応の SDF
-フォントアセットを Inspector で割り当ててください**（このパッケージにはフォントを同梱していません。
-未設定のままだと日本語部分が豆腐（□）表示になります）。
+READMEを参照）。木札の表示には TextMeshPro を使っているため、**事前に TMP Essential
+Resources のインポートが必要**です（下記セットアップ参照）。そのうえで、**日本語のコミット
+メッセージ・作者名を表示するには、木札の各 TextMeshPro（Heading / Message / Meta / Stats）の
+Font Asset に日本語対応の SDF フォントアセットを Inspector で割り当ててください**（このパッケージ
+には日本語フォントを同梱していません。TMP Essential Resources 導入直後の既定 Latin 専用フォント
+のままだと日本語部分が豆腐（□）表示になります）。
 
 ## セットアップ
 
 1. このパッケージを `Packages/com.fukuda-a-hu.vrc-git-bonsai/` に展開する
-2. Unity メニューの `Bonsai/Setup PoC Scene` を実行する
+2. まだ導入していなければ、Unity メニューの `Window > TextMeshPro > Import TMP Essential
+   Resources` を実行する（未導入のまま次の手順を行うと、TextMeshPro 生成時に Unity が
+   「TMP Importer」ダイアログを表示してブロックされます。`Bonsai/Setup PoC Scene` 側でも
+   未導入を検出してエラーで中断するようになっています）
+3. Unity メニューの `Bonsai/Setup PoC Scene` を実行する
 
 （シーンの保存先だけは利用者プロジェクトを汚さないよう `Assets/BonsaiGit/Scenes/` になります）
 
