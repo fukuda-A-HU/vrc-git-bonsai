@@ -48,6 +48,35 @@ function fail(message) {
   process.exit(1);
 }
 
+/** コミットメッセージの件名が80文字を超える場合、80文字に切り詰めて末尾に … を付ける。 */
+function truncateMsg(s) {
+  if (s.length <= 80) return s;
+  return `${s.slice(0, 80)}…`;
+}
+
+/**
+ * ref の最新コミット (sha/件名/作者/日時) をまとめて取得する。
+ * \x1f (Unit Separator) 区切りの1回の git log 呼び出しで済ませ、subprocess 起動回数を抑える。
+ * 取得失敗時はスキーマをクラッシュさせないよう空文字 / 0 にフォールバックする。
+ */
+function getHeadInfo(ref) {
+  const out = gitOrNull(['log', '-1', '--format=%h%x1f%s%x1f%an%x1f%ct', ref]);
+  if (!out) return { sha: '', msg: '', author: '', at: 0 };
+
+  const parts = out.split('\x1f');
+  const sha = parts[0] ?? '';
+  const msgRaw = parts[1] ?? '';
+  const author = parts[2] ?? '';
+  const atNum = parseInt(parts[3] ?? '', 10);
+
+  return {
+    sha,
+    msg: truncateMsg(msgRaw),
+    author,
+    at: Number.isFinite(atNum) ? atNum : 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // 1. fetch
 // ---------------------------------------------------------------------------
@@ -135,6 +164,14 @@ function round3(v) {
 
 const trunkLenNormalized = round3(clamp(Math.log2(1 + trunkLen) / 6, 0.05, 1));
 
+// origin/ プレフィックスを外した表示用の短縮名（ローカル HEAD フォールバック時は付いていない）。
+const defaultShortName = defaultBranch
+  ? defaultBranch.startsWith('origin/')
+    ? defaultBranch.slice('origin/'.length)
+    : defaultBranch
+  : '';
+const trunkHead = getHeadInfo(defaultRef);
+
 // ---------------------------------------------------------------------------
 // 4. ブランチ一覧
 // ---------------------------------------------------------------------------
@@ -216,6 +253,7 @@ for (const branch of remoteBranches) {
   const len = round3(clamp(Math.log2(1 + ahead) / 6, 0.05, 1));
 
   const seed = fnv1a32(shortName) % 360;
+  const head = getHeadInfo(branch);
 
   candidateBranches.push({
     h,
@@ -224,6 +262,8 @@ for (const branch of remoteBranches) {
     behind: Number.isFinite(behind) ? behind : 0,
     age,
     seed,
+    name: shortName,
+    head,
     _ageDays: ageDays, // ソート用の内部フィールド（出力前に除去）
   });
 }
@@ -241,12 +281,14 @@ const branches = candidateBranches.slice(0, MAX_BRANCHES).map(({ _ageDays, ...re
 // 6. 出力
 // ---------------------------------------------------------------------------
 const output = {
-  v: 1,
+  v: 2,
   gen: Math.floor(now / 1000),
   trunk: {
     commits: trunkLen,
     recent30,
     len: trunkLenNormalized,
+    name: defaultShortName,
+    head: trunkHead,
   },
   branches,
 };
@@ -279,9 +321,10 @@ fs.writeFileSync(outFile, JSON.stringify(output) + '\n', 'utf8');
 // ---------------------------------------------------------------------------
 console.log('[generate-bonsai-json] summary');
 console.log(`  repo dir       : ${repoDir}`);
-console.log(`  default branch : ${defaultBranch}`);
+console.log(`  default branch : ${defaultBranch} (head ${trunkHead.sha || '?'}: ${trunkHead.msg})`);
 console.log(`  trunk length   : ${trunkLen}`);
 console.log(`  recent30       : ${recent30}`);
 console.log(`  branches kept  : ${branches.length}`);
+console.log(`  branch names   : ${branches.map((b) => b.name).join(', ') || '(none)'}`);
 console.log(`  branches excl. : ${excludedCount} (ahead=0 or error), ${cappedByLimit} (over ${MAX_BRANCHES} cap)`);
 console.log(`  output         : ${outFile}`);
